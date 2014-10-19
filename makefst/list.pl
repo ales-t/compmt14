@@ -27,8 +27,18 @@ my @sentence;
 
 my $debug_paraphrases = 0;
 
+my $out_text = "text";
+my $out_isyms = "isyms";
+my $out_osyms = "osyms";
+my $out_prefix;
+my $out_ext = ".txt";
+
 GetOptions(
     "phr_pp|p=s" => \$paraphrasesFile,
+    "text|t=s" => \$out_text,
+    "isyms|i=s" => \$out_isyms,
+    "osyms|o=s" => \$out_osyms,
+    "prefix" => \$out_prefix
 );
 
 my @paraphrases;
@@ -62,11 +72,24 @@ close $fh;
 while (<>) {
     chomp;
     my @sentence = split /\s+/;
+    my @symbols = @sentence;
     my $sent_length = scalar @sentence;
 
+    my $counter = ".$.";
+    my $out_textfile = $out_text . $counter . $out_ext;
+    my $out_isymsfile = $out_isyms . $counter . $out_ext;
+    my $out_osymsfile = $out_osyms . $counter . $out_ext;
+
+    if(defined $out_prefix) {
+        $out_textfile = $out_prefix . "_" . $out_textfile;
+        $out_isymsfile = $out_prefix . "_" . $out_isymsfile;
+        $out_osymsfile = $out_prefix . "_" . $out_osymsfile;
+    }
+
+    open my $fh_text, ">", $out_textfile;
 
     for my $i (0..$#sentence) {
-        print_arc($i, $i+1, $sentence[$i], $sentence[$i]);
+        print_arc($fh_text, $i, $i+1, $sentence[$i], $sentence[$i]);
     }
 
     my $free_state = $sent_length + 1;
@@ -104,27 +127,61 @@ while (<>) {
                 for my $par_word_idx (1..$#paraphrase_words) {
                     my $preceding_par_word = $paraphrase_words[$par_word_idx - 1];
 
-                    print_arc($from_state, $free_state, $preceding_par_word, $preceding_par_word);
+                    print_arc($fh_text, $from_state, $free_state, $preceding_par_word, $preceding_par_word);
+                    push @symbols, $preceding_par_word;
                     $from_state = $free_state;
                     $free_state += 1;
                 }
 
                 my $last_word = $paraphrase_words[$#paraphrase_words];
-                print_arc($from_state, $to_state, $last_word, $last_word);
+                print_arc($fh_text, $from_state, $to_state, $last_word, $last_word);
+                push @symbols, $last_word;
 
             }
 
         }
     }
+
+    print_final_state($fh_text, $sent_length);
+
+    close $fh_text;
+
+    open my $fh_isyms, ">", $out_isymsfile;
+    print_syms($fh_isyms, @symbols);
+    close $fh_isyms;
+
+    open my $fh_osyms, ">", $out_osymsfile;
+    print_syms($fh_osyms, @symbols);
+    close $fh_osyms;
 }
 
 
 sub print_arc {
-    my ($from_state, $to_state, $input_sym, $output_sym, $weight) = @_;
+    my ($fh, $from_state, $to_state, $input_sym, $output_sym, $weight) = @_;
 
-    print join " ", ($from_state, $to_state, $input_sym, $output_sym);
-    print " $weight" if defined $weight;
-    print "\n";
+    print $fh join " ", ($from_state, $to_state, $input_sym, $output_sym);
+    print $fh " $weight" if defined $weight;
+    print $fh "\n";
+}
+
+sub print_syms {
+    my ($fh, @syms) = @_;
+
+    print $fh "<eps> 0\n";
+
+    for my $i (0..$#syms) {
+        my $sym = $syms[$i];
+        print $fh "$sym ".($i+1)."\n";
+    }
+
+}
+
+sub print_final_state {
+    my ($fh, $state, $weight) = @_;
+
+    print $fh $state;
+    print $fh " $weight" if defined $weight;
+    print $fh "\n";
 }
 
 =pod
