@@ -36,12 +36,15 @@ my $out_osyms = "osyms";
 my $out_prefix;
 my $out_ext = ".txt";
 
+my $para_arc_weight = 0.7;
+
 GetOptions(
     "phr_pp|p=s" => \$paraphrasesFile,
     "text|t=s" => \$out_text,
     "isyms|i=s" => \$out_isyms,
     "osyms|o=s" => \$out_osyms,
-    "prefix" => \$out_prefix
+    "prefix=s" => \$out_prefix,
+    "weight|w=f" => \$para_arc_weight
 );
 
 pod2usage("You must supply the paraphrases file via -p parameter") if !defined $paraphrasesFile;
@@ -87,15 +90,15 @@ while (<>) {
     my $out_osymsfile = $out_osyms . $counter . $out_ext;
 
     if(defined $out_prefix) {
-        $out_textfile = $out_prefix . "_" . $out_textfile;
-        $out_isymsfile = $out_prefix . "_" . $out_isymsfile;
-        $out_osymsfile = $out_prefix . "_" . $out_osymsfile;
+        $out_textfile = $out_prefix . $out_textfile;
+        $out_isymsfile = $out_prefix . $out_isymsfile;
+        $out_osymsfile = $out_prefix . $out_osymsfile;
     }
 
     open my $fh_text, ">", $out_textfile;
 
     for my $i (0..$#sentence) {
-        print_arc($fh_text, $i, $i+1, $sentence[$i], $sentence[$i]);
+        print_arc($fh_text, $i, $i+1, $sentence[$i], $sentence[$i], 1);
     }
 
     my $free_state = $sent_length + 1;
@@ -133,14 +136,14 @@ while (<>) {
                 for my $par_word_idx (1..$#paraphrase_words) {
                     my $preceding_par_word = $paraphrase_words[$par_word_idx - 1];
 
-                    print_arc($fh_text, $from_state, $free_state, $preceding_par_word, $preceding_par_word);
+                    print_arc($fh_text, $from_state, $free_state, $preceding_par_word, $preceding_par_word, $para_arc_weight);
                     push @symbols, $preceding_par_word;
                     $from_state = $free_state;
                     $free_state += 1;
                 }
 
                 my $last_word = $paraphrase_words[$#paraphrase_words];
-                print_arc($fh_text, $from_state, $to_state, $last_word, $last_word);
+                print_arc($fh_text, $from_state, $to_state, $last_word, $last_word, $para_arc_weight);
                 push @symbols, $last_word;
 
             }
@@ -148,7 +151,7 @@ while (<>) {
         }
     }
 
-    print_final_state($fh_text, $sent_length);
+    print_final_state($fh_text, $sent_length, 1);
 
     close $fh_text;
 
