@@ -23,6 +23,9 @@ use warnings;
 use Data::Dumper;
 use Getopt::Long;
 use Pod::Usage;
+use IO::Handle;
+
+autoflush STDOUT 1;
 
 my $paraphrasesFile;
 my $lexFile;
@@ -37,6 +40,7 @@ my $out_prefix;
 my $out_ext = ".txt";
 
 my $para_arc_weight = 0.7;
+my $lines;
 
 GetOptions(
     "phr_pp|p=s" => \$paraphrasesFile,
@@ -44,7 +48,8 @@ GetOptions(
     "isyms|i=s" => \$out_isyms,
     "osyms|o=s" => \$out_osyms,
     "prefix=s" => \$out_prefix,
-    "weight|w=f" => \$para_arc_weight
+    "weight|w=f" => \$para_arc_weight,
+    "lines=i" => \$lines
 );
 
 pod2usage("You must supply the paraphrases file via -p parameter") if !defined $paraphrasesFile;
@@ -62,6 +67,12 @@ while (<$fh>) {
 
     my $original = lc $parts[1];
     my $paraphrase = lc $parts[2];
+
+    $original =~ s/^\s+//;
+    $paraphrase =~ s/^\s+//;
+
+    $original =~ s/\s+$//;
+    $paraphrase =~ s/\s+$//;
 
     $original =~ s/\s+/ /g;
     $paraphrase =~ s/\s+/ /g;
@@ -162,6 +173,16 @@ while (<>) {
     open my $fh_osyms, ">", $out_osymsfile;
     print_syms($fh_osyms, @symbols);
     close $fh_osyms;
+
+    if (defined $lines) {
+        my $percent_done = $. / $lines * 100;
+        print "\r";
+        printf '%.2f %%', $percent_done;
+    }
+}
+
+if(defined $lines) {
+    print "\n";
 }
 
 
